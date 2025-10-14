@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "JP Hover Translate (Gemini / DeepL)",
+  "name": "Hover Translate (Gemini / DeepL)",
   "version": "1.4.0",
-  "description": "Alt+Select to translate Japanese. Save words.",
+  "description": "Alt+Select to translate any language to VietNamese. Save words.",
   "permissions": [
     "storage",
     "activeTab",
