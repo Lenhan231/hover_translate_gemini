@@ -1,0 +1,17 @@
+# API Keys và thông tin nhạy cảm
+.env
+.env.local
+
+# Chrome extension private data
+*.pem
+*.crx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

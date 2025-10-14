@@ -1,0 +1,127 @@
+
+#jp-hover-translate-overlay {
+  position: absolute;
+  z-index: 2147483647;
+  max-width: 360px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans";
+  font-size: 14px;
+  line-height: 1.4;
+  color: #111;
+  background: rgba(255,255,255,0.98);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+  padding: 10px 12px;
+  display: none;
+  backdrop-filter: saturate(1.15) blur(2px);
+  pointer-events: auto;
+}
+@media (prefers-color-scheme: dark) {
+  #jp-hover-translate-overlay {
+    color: #e5e7eb;
+    background: rgba(30,30,34,0.98);
+    border-color: rgba(255,255,255,0.08);
+  }
+}
+
+#jp-hover-translate-overlay .jht-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#jp-hover-translate-overlay .jht-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.1);
+  color: #3b82f6;
+}
+@media (prefers-color-scheme: dark) {
+  #jp-hover-translate-overlay .jht-badge {
+    background: rgba(96,165,250,0.15);
+    color: #60a5fa;
+  }
+}
+
+#jp-hover-translate-overlay #jht-close {
+  border: 1px solid rgba(0,0,0,0.12);
+  background: transparent;
+  padding: 2px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+#jp-hover-translate-overlay #jht-close:hover {
+  background: rgba(239,68,68,0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+@media (prefers-color-scheme: dark) {
+  #jp-hover-translate-overlay #jht-close {
+    border-color: rgba(255,255,255,0.12);
+    color: #e5e7eb;
+  }
+  #jp-hover-translate-overlay #jht-close:hover {
+    background: rgba(239,68,68,0.2);
+    border-color: #f87171;
+    color: #f87171;
+  }
+}
+
+#jp-hover-translate-overlay #jht-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 4px;
+}
+
+#jp-hover-translate-overlay #jht-reading {
+  font-size: 12px;
+  font-style: italic;
+  color: #6b7280;
+  margin-bottom: 8px;
+  font-family: 'Courier New', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  #jp-hover-translate-overlay #jht-reading {
+    color: #9ca3af;
+  }
+}
+
+#jp-hover-translate-overlay .jht-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#jp-hover-translate-overlay #jht-save {
+  border: none;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(59,130,246,0.2);
+}
+#jp-hover-translate-overlay #jht-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59,130,246,0.3);
+}
+#jp-hover-translate-overlay #jht-save:active {
+  transform: translateY(0);
+}
+@media (prefers-color-scheme: dark) {
+  #jp-hover-translate-overlay #jht-save {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 2px 4px rgba(37,99,235,0.3);
+  }
+  #jp-hover-translate-overlay #jht-save:hover {
+    box-shadow: 0 4px 8px rgba(37,99,235,0.4);
+  }
+}

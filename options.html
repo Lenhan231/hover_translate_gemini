@@ -1,0 +1,81 @@
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>JP Hover Translate — Options</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans";
+           margin: 24px; max-width: 760px; }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    .section { border: 1px solid #e4e4e7; border-radius: 12px; padding: 16px; margin-bottom: 18px; }
+    label { display:block; font-weight:600; margin:10px 0 6px; }
+    input[type="text"], select { width:100%; padding:8px; border:1px solid #d4d4d8; border-radius:8px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    small.note { color:#6b7280; display:block; margin-top:6px; }
+    button { padding:8px 12px; border-radius:8px; border:1px solid #d4d4d8; cursor:pointer; }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+  <h1>JP Hover Translate — Options</h1>
+
+  <div class="section">
+    <div class="row">
+      <div>
+        <label for="provider">Provider</label>
+        <select id="provider">
+          <option value="gemini">Gemini</option>
+          <option value="deepl">DeepL</option>
+        </select>
+      </div>
+      <div>
+        <label for="targetLang">Target language</label>
+        <select id="targetLang">
+          <option value="VI">Vietnamese (VI)</option>
+          <option value="EN">English (EN)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="geminiKey">Gemini API Key</label>
+        <input id="geminiKey" type="text" placeholder="AIza...">
+        <small class="note">Model defaults to <code>gemini-2.0-flash</code>.</small>
+      </div>
+      <div>
+        <label for="geminiModel">Gemini Model</label>
+        <input id="geminiModel" type="text" value="gemini-2.0-flash">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="deeplKey">DeepL API Key</label>
+        <input id="deeplKey" type="text" placeholder="deepl-auth-key">
+      </div>
+      <div>
+        <label for="maxChars">Max characters per lookup</label>
+        <input id="maxChars" type="text" value="600">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:12px;">
+      <button id="save">Save</button>
+      <button id="reset">Reset defaults</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Saved Words (local)</h3>
+    <div id="saved"></div>
+    <div style="margin-top:8px;">
+      <button id="clear">Clear All</button>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

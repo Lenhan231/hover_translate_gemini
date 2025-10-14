@@ -2,7 +2,7 @@
 const DEFAULTS = {
   provider: 'gemini',
   geminiApiKey: '',
-  geminiModel: 'gemini-1.5-flash',
+  geminiModel: 'gemini-2.0-flash',
   deeplApiKey: '',
   targetLang: 'VI',
   maxChars: 600
@@ -16,6 +16,7 @@ const els = {
   targetLang: document.getElementById('targetLang'),
   maxChars: document.getElementById('maxChars'),
   save: document.getElementById('save'),
+  reset: document.getElementById('reset'),
   saved: document.getElementById('saved'),
   clear: document.getElementById('clear')
 };
@@ -23,11 +24,11 @@ const els = {
 async function load() {
   const cfg = await chrome.storage.sync.get(DEFAULTS);
   els.provider.value = cfg.provider;
-  els.geminiKey.value = cfg.geminiApiKey;
-  els.geminiModel.value = cfg.geminiModel;
-  els.deeplKey.value = cfg.deeplApiKey;
-  els.targetLang.value = cfg.targetLang;
-  els.maxChars.value = cfg.maxChars;
+  els.geminiKey.value = cfg.geminiApiKey || '';
+  els.geminiModel.value = cfg.geminiModel || 'gemini-2.0-flash';
+  els.deeplKey.value = cfg.deeplApiKey || '';
+  els.targetLang.value = cfg.targetLang || 'VI';
+  els.maxChars.value = cfg.maxChars ?? 600;
 
   const loc = await chrome.storage.local.get({ savedWords: [] });
   renderSaved(loc.savedWords);
@@ -50,13 +51,19 @@ els.save.addEventListener('click', async () => {
   const cfg = {
     provider: els.provider.value,
     geminiApiKey: els.geminiKey.value.trim(),
-    geminiModel: els.geminiModel.value.trim() || 'gemini-1.5-flash',
+    geminiModel: els.geminiModel.value.trim() || 'gemini-2.0-flash',
     deeplApiKey: els.deeplKey.value.trim(),
     targetLang: els.targetLang.value,
     maxChars: parseInt(els.maxChars.value || '600', 10)
   };
   await chrome.storage.sync.set(cfg);
   alert('Saved.');
+});
+
+els.reset.addEventListener('click', async () => {
+  await chrome.storage.sync.set(DEFAULTS);
+  await load();
+  alert('Reset to defaults.');
 });
 
 els.clear.addEventListener('click', async () => {
