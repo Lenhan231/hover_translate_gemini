@@ -1,9 +1,9 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>JP Hover Translate — Options</title>
+  <title>Quick Translate to Vietnamese — Options</title>
   <style>
     :root { color-scheme: light dark; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans";
@@ -19,46 +19,35 @@
   </style>
 </head>
 <body>
-  <h1>JP Hover Translate — Options</h1>
+  <h1>Quick Translate to Vietnamese — Settings</h1>
+  <p style="color:#6b7280;margin-top:-8px;margin-bottom:16px;">Alt+Select any text to translate to Vietnamese</p>
 
   <div class="section">
     <div class="row">
       <div>
-        <label for="provider">Provider</label>
-        <select id="provider">
-          <option value="gemini">Gemini</option>
-          <option value="deepl">DeepL</option>
-        </select>
+        <label for="geminiKey">Gemini API Key</label>
+        <input id="geminiKey" type="text" placeholder="AIza...">
+        <small class="note">Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
       </div>
       <div>
-        <label for="targetLang">Target language</label>
+        <label for="geminiModel">Gemini Model</label>
+        <input id="geminiModel" type="text" value="gemini-2.0-flash">
+        <small class="note">Recommended: <code>gemini-2.0-flash</code> (fast & accurate)</small>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="targetLang">Target Language</label>
         <select id="targetLang">
           <option value="VI">Vietnamese (VI)</option>
           <option value="EN">English (EN)</option>
         </select>
       </div>
-    </div>
-
-    <div class="row">
       <div>
-        <label for="geminiKey">Gemini API Key</label>
-        <input id="geminiKey" type="text" placeholder="AIza...">
-        <small class="note">Model defaults to <code>gemini-2.0-flash</code>.</small>
-      </div>
-      <div>
-        <label for="geminiModel">Gemini Model</label>
-        <input id="geminiModel" type="text" value="gemini-2.0-flash">
-      </div>
-    </div>
-
-    <div class="row">
-      <div>
-        <label for="deeplKey">DeepL API Key</label>
-        <input id="deeplKey" type="text" placeholder="deepl-auth-key">
-      </div>
-      <div>
-        <label for="maxChars">Max characters per lookup</label>
+        <label for="maxChars">Max Characters</label>
         <input id="maxChars" type="text" value="600">
+        <small class="note">Maximum text length per translation</small>
       </div>
     </div>
 

@@ -1,12 +1,15 @@
 {
   "manifest_version": 2,
-  "name": "JP Hover Translate",
-  "version": "0.1",
-  "description": "Hover to translate Japanese text using Gemini API",
-  "background": { "scripts": ["background.js"] },
+  "name": "Quick Translate to Vietnamese",
+  "version": "2.0.0",
+  "description": "Alt+Select to translate any language to Vietnamese using Gemini AI",
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
   "permissions": [
-    "activeTab",
     "storage",
+    "activeTab",
     "<all_urls>"
   ],
   "content_scripts": [
@@ -25,7 +28,10 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "applications": {
-    "gecko": { "id": "jp-hover-translate@local" }
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "quick-translate-vi@extension.local",
+      "strict_min_version": "109.0"
+    }
   }
 }

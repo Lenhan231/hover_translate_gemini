@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quick Translate - Settings</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #1a1a1a;
+      color: #e5e7eb;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 0 0 8px;
+    }
+    .subtitle {
+      color: #9ca3af;
+      margin-bottom: 24px;
+    }
+    .section {
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 16px 0 8px;
+      color: #f3f4f6;
+    }
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #4a4a4a;
+      border-radius: 8px;
+      background: #1a1a1a;
+      color: #e5e7eb;
+      font-size: 14px;
+    }
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-right: 8px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      font-weight: normal;
+    }
+    small {
+      display: block;
+      color: #9ca3af;
+      margin-top: 6px;
+      font-size: 13px;
+    }
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    #saveBtn {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+    }
+    #saveBtn:hover {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+    #resetBtn {
+      background: #3a3a3a;
+      color: #e5e7eb;
+      border: 1px solid #4a4a4a;
+    }
+    #resetBtn:hover {
+      background: #4a4a4a;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+    }
+    .status.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+    }
+    .status.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚙️ Settings</h1>
+  <p class="subtitle">Configure Quick Translate Desktop</p>
+
+  <div class="section">
+    <h3>Gemini API</h3>
+    
+    <label for="geminiApiKey">API Key</label>
+    <input type="text" id="geminiApiKey" placeholder="AIza...">
+    <small>Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #60a5fa;">Google AI Studio</a></small>
+
+    <label for="geminiModel">Model</label>
+    <input type="text" id="geminiModel" value="gemini-2.0-flash">
+    <small>Recommended: gemini-2.0-flash (fast & accurate)</small>
+
+    <label for="targetLang">Target Language</label>
+    <select id="targetLang">
+      <option value="VI">Vietnamese (VI)</option>
+      <option value="EN">English (EN)</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <h3>Hotkey & Behavior</h3>
+    
+    <label for="hotkey">Global Hotkey</label>
+    <select id="hotkey">
+      <option value="Alt">Alt</option>
+      <option value="CommandOrControl+Shift+T">Ctrl+Shift+T</option>
+      <option value="CommandOrControl+Shift+D">Ctrl+Shift+D</option>
+    </select>
+    <small>Press this key to translate selected text</small>
+
+    <label class="checkbox-label" style="margin-top: 16px;">
+      <input type="checkbox" id="autoHide">
+      Auto-hide overlay
+    </label>
+
+    <label for="autoHideDelay">Auto-hide delay (ms)</label>
+    <input type="number" id="autoHideDelay" value="5000" min="1000" max="30000" step="1000">
+    <small>How long to show the overlay before hiding (1000 = 1 second)</small>
+  </div>
+
+  <div class="buttons">
+    <button id="saveBtn">💾 Save Settings</button>
+    <button id="resetBtn">🔄 Reset to Defaults</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <script>
+    const els = {
+      geminiApiKey: document.getElementById('geminiApiKey'),
+      geminiModel: document.getElementById('geminiModel'),
+      targetLang: document.getElementById('targetLang'),
+      hotkey: document.getElementById('hotkey'),
+      autoHide: document.getElementById('autoHide'),
+      autoHideDelay: document.getElementById('autoHideDelay'),
+      saveBtn: document.getElementById('saveBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      status: document.getElementById('status')
+    };
+
+    // Load settings
+    async function loadSettings() {
+      const settings = await window.electronAPI.getSettings();
+      els.geminiApiKey.value = settings.geminiApiKey || '';
+      els.geminiModel.value = settings.geminiModel || 'gemini-2.0-flash';
+      els.targetLang.value = settings.targetLang || 'VI';
+      els.hotkey.value = settings.hotkey || 'Alt';
+      els.autoHide.checked = settings.autoHide !== false;
+      els.autoHideDelay.value = settings.autoHideDelay || 5000;
+    }
+
+    // Save settings
+    els.saveBtn.addEventListener('click', async () => {
+      const settings = {
+        geminiApiKey: els.geminiApiKey.value.trim(),
+        geminiModel: els.geminiModel.value.trim() || 'gemini-2.0-flash',
+        targetLang: els.targetLang.value,
+        hotkey: els.hotkey.value,
+        autoHide: els.autoHide.checked,
+        autoHideDelay: parseInt(els.autoHideDelay.value, 10)
+      };
+
+      if (!settings.geminiApiKey) {
+        showStatus('Please enter Gemini API Key!', 'error');
+        return;
+      }
+
+      const result = await window.electronAPI.saveSettings(settings);
+      if (result.success) {
+        showStatus('✅ Settings saved successfully!', 'success');
+      } else {
+        showStatus('❌ Failed to save settings', 'error');
+      }
+    });
+
+    // Reset settings
+    els.resetBtn.addEventListener('click', async () => {
+      if (confirm('Reset all settings to defaults?')) {
+        const defaults = {
+          geminiApiKey: '',
+          geminiModel: 'gemini-2.0-flash',
+          targetLang: 'VI',
+          hotkey: 'Alt',
+          autoHide: true,
+          autoHideDelay: 5000
+        };
+        await window.electronAPI.saveSettings(defaults);
+        await loadSettings();
+        showStatus('✅ Reset to defaults', 'success');
+      }
+    });
+
+    function showStatus(message, type) {
+      els.status.textContent = message;
+      els.status.className = `status ${type}`;
+      els.status.style.display = 'block';
+      setTimeout(() => {
+        els.status.style.display = 'none';
+      }, 3000);
+    }
+
+    // Load on start
+    loadSettings();
+  </script>
+</body>
+</html>

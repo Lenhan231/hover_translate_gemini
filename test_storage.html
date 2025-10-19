@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Storage Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    button { margin: 5px; padding: 10px; }
+    pre { background: #f0f0f0; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Storage API Test</h1>
+  
+  <div>
+    <input id="testKey" type="text" placeholder="Test API Key" style="width: 300px;">
+    <button id="testSave">Test Save</button>
+    <button id="testLoad">Test Load</button>
+    <button id="testClear">Clear All</button>
+  </div>
+  
+  <h3>Console Output:</h3>
+  <pre id="output"></pre>
+  
+  <script>
+    const output = document.getElementById('output');
+    const testKey = document.getElementById('testKey');
+    
+    function log(msg) {
+      console.log(msg);
+      output.textContent += msg + '\n';
+    }
+    
+    // Check API availability
+    const api = (typeof browser !== 'undefined') ? browser : 
+                 (typeof chrome !== 'undefined') ? chrome : null;
+    
+    log('=== Storage API Test ===');
+    log('API available: ' + (api ? 'YES' : 'NO'));
+    log('API type: ' + (typeof browser !== 'undefined' ? 'browser' : 'chrome'));
+    log('Storage available: ' + (api && api.storage ? 'YES' : 'NO'));
+    log('');
+    
+    if (!api || !api.storage) {
+      log('ERROR: No storage API available!');
+    }
+    
+    document.getElementById('testSave').addEventListener('click', async () => {
+      try {
+        const key = testKey.value.trim();
+        if (!key) {
+          log('ERROR: Enter a test key first!');
+          return;
+        }
+        
+        log('Saving: ' + key);
+        const data = { geminiApiKey: key, timestamp: Date.now() };
+        await api.storage.sync.set(data);
+        log('✅ Saved successfully!');
+        
+        // Verify
+        const result = await api.storage.sync.get(['geminiApiKey', 'timestamp']);
+        log('Verified: ' + JSON.stringify(result));
+      } catch (err) {
+        log('❌ Save error: ' + err.message);
+        console.error(err);
+      }
+    });
+    
+    document.getElementById('testLoad').addEventListener('click', async () => {
+      try {
+        log('Loading...');
+        const result = await api.storage.sync.get(null); // Get all
+        log('All data: ' + JSON.stringify(result, null, 2));
+      } catch (err) {
+        log('❌ Load error: ' + err.message);
+        console.error(err);
+      }
+    });
+    
+    document.getElementById('testClear').addEventListener('click', async () => {
+      try {
+        log('Clearing...');
+        await api.storage.sync.clear();
+        log('✅ Cleared!');
+      } catch (err) {
+        log('❌ Clear error: ' + err.message);
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

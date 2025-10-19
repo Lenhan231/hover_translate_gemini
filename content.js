@@ -1,9 +1,12 @@
 
-// content.js — Select text + Alt to translate (JP → VI/EN). v1.4.0
+// content.js — Select text + Alt to translate any language to Vietnamese. v2.0.0
 
-let overlay, overlayText, savedBtn, providerBadge, readingRow;
-const DEFAULTS = { targetLang: 'VI', provider: 'gemini' };
+let overlay, overlayText, savedBtn, readingRow;
+const DEFAULTS = { targetLang: 'VI' };
 const MAX_LEN_FALLBACK = 800;
+
+// Cross-browser API compatibility
+const api = (typeof browser !== 'undefined') ? browser : chrome;
 
 // Soft selection style
 (function injectSelectionStyle() {
@@ -18,7 +21,7 @@ function ensureOverlay() {
   overlay.id = 'jp-hover-translate-overlay';
   overlay.innerHTML = `
     <div class="jht-row">
-      <span id="jht-provider" class="jht-badge"></span>
+      <span class="jht-badge">Gemini AI</span>
       <button id="jht-close" title="Close">✕</button>
     </div>
     <div id="jht-text" class="jht-translation"></div>
@@ -31,25 +34,32 @@ function ensureOverlay() {
   overlayText = overlay.querySelector('#jht-text');
   readingRow = overlay.querySelector('#jht-reading');
   savedBtn = overlay.querySelector('#jht-save');
-  providerBadge = overlay.querySelector('#jht-provider');
   const closeBtn = overlay.querySelector('#jht-close');
 
   savedBtn.addEventListener('click', async () => {
     const src = overlayText?.dataset?.source || '';
     const trans = overlayText?.textContent || '';
     if (!src) return;
-    const entry = { word: src, translation: trans, ts: Date.now() };
-    const store = await chrome.storage.local.get({ savedWords: [] });
-    store.savedWords.unshift(entry);
-    await chrome.storage.local.set({ savedWords: store.savedWords.slice(0, 1000) });
-    savedBtn.textContent = '✅ Saved!';
-    savedBtn.style.background = '#10b981';
-    savedBtn.style.color = 'white';
-    setTimeout(() => {
-      savedBtn.textContent = '💾 Save Word';
-      savedBtn.style.background = '';
-      savedBtn.style.color = '';
-    }, 1500);
+    try {
+      const entry = { word: src, translation: trans, ts: Date.now() };
+      const store = await api.storage.local.get({ savedWords: [] });
+      store.savedWords.unshift(entry);
+      await api.storage.local.set({ savedWords: store.savedWords.slice(0, 1000) });
+      savedBtn.textContent = '✅ Saved!';
+      savedBtn.style.background = '#10b981';
+      savedBtn.style.color = 'white';
+      setTimeout(() => {
+        savedBtn.textContent = '💾 Save Word';
+        savedBtn.style.background = '';
+        savedBtn.style.color = '';
+      }, 1500);
+    } catch (err) {
+      console.error('Save word error:', err);
+      savedBtn.textContent = '❌ Error';
+      setTimeout(() => {
+        savedBtn.textContent = '💾 Save Word';
+      }, 1500);
+    }
   });
 
   closeBtn.addEventListener('click', () => {
@@ -88,13 +98,9 @@ async function doTranslate(text) {
   overlayText.style.opacity = '0.6';
   readingRow.textContent = '';
   overlayText.dataset.source = text;
-  providerBadge.textContent = '';
   placeOverlayAtSelection();
 
-  const cfg = await chrome.storage.sync.get(DEFAULTS);
-  providerBadge.textContent = cfg.provider === 'deepl' ? 'DeepL' : 'Gemini';
-
-  chrome.runtime.sendMessage({ type: 'TRANSLATE_TEXT', text }, (resp) => {
+  api.runtime.sendMessage({ type: 'TRANSLATE_TEXT', text }, (resp) => {
     const elapsed = Date.now() - startTime;
     console.log(`Translation took ${elapsed}ms`);
     

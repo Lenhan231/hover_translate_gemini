@@ -1,53 +1,71 @@
-# JP Hover Translate (Gemini / DeepL)
+# Quick Translate to Vietnamese
 
-Extension Chrome để dịch tiếng Nhật nhanh chóng bằng cách chọn text và nhấn phím Alt. Hỗ trợ dịch sang tiếng Việt hoặc tiếng Anh thông qua Gemini AI hoặc DeepL API.
+Extension Firefox/Zen Browser để dịch **mọi ngôn ngữ** sang tiếng Việt nhanh chóng bằng cách chọn text và nhấn phím Alt. Sử dụng Gemini AI.
 
 ## Tính năng
 
-- **Dịch nhanh**: Chọn text tiếng Nhật và nhấn Alt để dịch ngay lập tức
-- **Đa nền tảng AI**: Hỗ trợ cả Gemini AI và DeepL API
-- **Phát âm**: Nghe phát âm tiếng Nhật với giọng đọc tự nhiên
-- **Romaji**: Hiển thị cách đọc romaji (khi dùng Gemini)
+- **Dịch đa ngôn ngữ**: Tự động nhận diện và dịch bất kỳ ngôn ngữ nào sang tiếng Việt
+- **Dịch nhanh**: Chọn text và nhấn Alt để dịch ngay lập tức (1-3 giây)
+- **Gemini AI**: Sử dụng model `gemini-2.0-flash` mạnh mẽ và nhanh
+- **Romanization**: Hiển thị cách đọc romaji/pinyin cho tiếng Nhật/Trung/Hàn
 - **Lưu từ vựng**: Lưu các từ đã dịch để ôn tập sau
 - **Giao diện đẹp**: Overlay hiện đại với hỗ trợ dark mode
-- **Tùy chỉnh**: Chọn ngôn ngữ đích, model AI, và giới hạn ký tự
+- **Miễn phí**: Chỉ cần Gemini API key miễn phí
 
 ## Cài đặt
 
+### Firefox / Zen Browser
+
 1. Clone hoặc tải repository này về máy
-2. Mở Chrome và truy cập `chrome://extensions/`
-3. Bật "Developer mode" ở góc trên bên phải
-4. Click "Load unpacked" và chọn thư mục chứa extension
-5. Extension sẽ xuất hiện trong danh sách extensions
+2. Mở Firefox/Zen và truy cập `about:debugging#/runtime/this-firefox`
+3. Click "Load Temporary Add-on..."
+4. Chọn file `manifest.json` trong thư mục extension
+5. Extension sẽ hoạt động cho đến khi đóng browser
+
+### Cài đặt vĩnh viễn (Firefox)
+
+1. Đóng gói extension: `zip -r quick-translate-vi.xpi *`
+2. Vào `about:addons`
+3. Click biểu tượng ⚙️ > "Install Add-on From File..."
+4. Chọn file `.xpi` vừa tạo
 
 ## Cấu hình
 
-1. Click chuột phải vào icon extension và chọn "Options"
-2. Chọn provider (Gemini hoặc DeepL)
-3. Nhập API key tương ứng:
-   - **Gemini**: Lấy API key miễn phí tại [Google AI Studio](https://aistudio.google.com/app/apikey)
-   - **DeepL**: Đăng ký tài khoản miễn phí tại [DeepL API](https://www.deepl.com/pro-api)
-4. Chọn ngôn ngữ đích (Vietnamese hoặc English)
-5. Tùy chỉnh model Gemini và số ký tự tối đa nếu cần
-6. Click "Save"
+1. Click chuột phải vào icon extension và chọn "Preferences"
+2. Nhập Gemini API key:
+   - Lấy API key **miễn phí** tại [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Free tier: 15 requests/phút, 1500 requests/ngày
+3. Chọn ngôn ngữ đích (Vietnamese hoặc English)
+4. Tùy chỉnh model và số ký tự tối đa nếu cần
+5. Click "Save"
 
 ## Cách sử dụng
 
 1. **Dịch text**: 
-   - Chọn (bôi đen) text tiếng Nhật trên bất kỳ trang web nào
+   - Chọn (bôi đen) text bất kỳ ngôn ngữ nào trên trang web
    - Nhấn và giữ phím **Alt**
    - Overlay dịch sẽ xuất hiện ngay bên dưới text đã chọn
+   - Extension tự động nhận diện ngôn ngữ nguồn
 
-2. **Nghe phát âm**:
-   - Click nút 🔊 trong overlay để nghe phát âm tiếng Nhật
+2. **Lưu từ vựng**:
+   - Click nút "💾 Save Word" để lưu từ và bản dịch
+   - Xem danh sách từ đã lưu trong trang Settings
 
-3. **Lưu từ vựng**:
-   - Click nút "+ Save" để lưu từ và bản dịch
-   - Xem danh sách từ đã lưu trong trang Options
-
-4. **Đóng overlay**:
+3. **Đóng overlay**:
    - Click nút ✕ hoặc nhấn phím **Esc**
    - Click ra ngoài overlay
+
+## Ngôn ngữ hỗ trợ
+
+Extension hỗ trợ dịch **mọi ngôn ngữ** sang tiếng Việt, bao gồm:
+- 🇯🇵 Tiếng Nhật (có romaji)
+- 🇨🇳 Tiếng Trung (có pinyin)
+- 🇰🇷 Tiếng Hàn (có romanization)
+- 🇬🇧 Tiếng Anh
+- 🇫🇷 Tiếng Pháp
+- 🇩🇪 Tiếng Đức
+- 🇪🇸 Tiếng Tây Ban Nha
+- Và hơn 100+ ngôn ngữ khác...
 
 ## Cấu trúc project
 
@@ -67,17 +85,18 @@ Extension Chrome để dịch tiếng Nhật nhanh chóng bằng cách chọn te
 
 ## Công nghệ sử dụng
 
-- **Manifest V3**: Chrome Extension API mới nhất
-- **Gemini AI**: Model `gemini-2.0-flash` cho dịch thuật chính xác
-- **DeepL API**: Dịch thuật chuyên nghiệp
-- **Web Speech API**: Phát âm tiếng Nhật tự nhiên
-- **Chrome Storage API**: Lưu trữ cài đặt và từ vựng
+- **Manifest V2**: Firefox WebExtensions API (tương thích Zen Browser)
+- **Gemini AI**: Model `gemini-2.0-flash` với auto language detection
+- **Browser Storage API**: Lưu trữ cài đặt và từ vựng (sync + local)
+- **Vanilla JavaScript**: Không dependencies, nhẹ và nhanh
 
 ## Giới hạn
 
 - Mặc định giới hạn 600 ký tự mỗi lần dịch (có thể tùy chỉnh)
-- Gemini API free tier có giới hạn requests
-- DeepL free tier: 500,000 ký tự/tháng
+- Gemini API free tier:
+  - 15 requests/phút
+  - 1,500 requests/ngày
+  - 1 triệu tokens/ngày
 
 ## Phát triển
 
@@ -89,12 +108,26 @@ Extension được xây dựng với vanilla JavaScript, không cần build tool
 
 ## Changelog
 
+### v2.0.0 (Current)
+- 🔥 Chuyển sang Firefox/Zen Browser (Manifest V2)
+- 🌍 Hỗ trợ dịch **mọi ngôn ngữ** sang tiếng Việt (không chỉ tiếng Nhật)
+- 🚀 Tối ưu tốc độ dịch với generation config (1-3 giây)
+- 🎨 UI mới với nút Save gradient đẹp mắt
+- ❌ Bỏ chức năng phát âm và DeepL (chỉ giữ Gemini)
+- ✨ Cải thiện prompt để AI tự nhận diện ngôn ngữ
+- 🐛 Fix romanization display
+- 💡 Đơn giản hóa: chỉ cần 1 API key
+
+### v1.4.0
+- Tối ưu tốc độ dịch
+- Cải thiện UI nút Save
+- Thêm loading indicator
+- Fix speech synthesis
+
 ### v1.3.0
 - Thêm nút phát âm tiếng Nhật
 - Cải thiện UI với provider badge
-- Tối ưu xử lý JSON response từ Gemini
 - Hỗ trợ dark mode tốt hơn
-- Preload voices cho phát âm mượt mà hơn
 
 ## License
 

@@ -1,0 +1,61 @@
+{
+  "name": "quick-translate-desktop",
+  "version": "1.0.0",
+  "description": "System-wide translation app using Gemini AI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:deb": "electron-builder --linux deb",
+    "build:appimage": "electron-builder --linux AppImage"
+  },
+  "keywords": ["translate", "gemini", "desktop", "vietnamese"],
+  "author": {
+    "name": "Quick Translate",
+    "email": "contact@quicktranslate.local"
+  },
+  "homepage": "https://github.com/yourusername/quick-translate",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "node-fetch": "^2.7.0"
+  },
+  "build": {
+    "appId": "com.quicktranslate.desktop",
+    "productName": "Quick Translate",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/*.md",
+      "!.env"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
+      "category": "Utility",
+      "maintainer": "Quick Translate <contact@quicktranslate.local>",
+      "desktop": {
+        "Name": "Quick Translate",
+        "Comment": "System-wide translation using Gemini AI",
+        "Categories": "Utility;Translation;"
+      }
+    }
+  }
+}
