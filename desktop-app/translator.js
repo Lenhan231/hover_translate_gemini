@@ -33,13 +33,34 @@ async function translateText(text) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const langLabel = targetLang === 'VI' ? 'Vietnamese' : 'English';
-    const prompt = `Detect the source language and translate to ${langLabel}. If source is Japanese/Chinese/Korean, provide romanized reading.\nReturn JSON: {"translation":"...","reading":"romanization or empty"}\n\nText: ${text}`;
+    
+    // Enhanced prompt to ALWAYS get romaji for Japanese
+    const prompt = `You are a professional translator. Translate the following text to ${langLabel}.
+
+CRITICAL RULES:
+1. If the source language is Japanese (日本語), you MUST ALWAYS include romaji reading
+2. If the source language is Chinese (中文), include pinyin
+3. If the source language is Korean (한국어), include romanization
+4. For other languages, leave reading empty
+
+OUTPUT FORMAT (strict JSON only, no markdown):
+{
+  "translation": "your translation here",
+  "reading": "romaji/pinyin/romanization here (REQUIRED for Japanese/Chinese/Korean)"
+}
+
+EXAMPLE for Japanese:
+Input: 日本語能力試験
+Output: {"translation":"Kỳ thi năng lực Nhật ngữ","reading":"Nihongo Nōryoku Shiken"}
+
+Now translate this text:
+${text}`;
 
     const body = {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 200,
+        maxOutputTokens: 300,
         topP: 0.8,
         topK: 10
       }

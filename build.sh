@@ -10,6 +10,7 @@ rm -f quick-translate-vi.xpi
 # Create XPI package (Firefox extension format)
 zip -r -FS quick-translate-vi.xpi \
   manifest.json \
+  offline-db.js \
   background.js \
   content.js \
   options.js \

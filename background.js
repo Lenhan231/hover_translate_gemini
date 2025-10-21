@@ -13,8 +13,11 @@
   const DEFAULTS = {
     geminiModel: 'gemini-2.0-flash',
     geminiApiKey: '',
-    targetLang: 'VI',
-    maxChars: 600
+    targetLang: 'VI', // fixed: always translate to Vietnamese
+    maxChars: 120,
+    deepLApiKey: '',
+    deepLEndpoint: 'free',
+    maxWordsPerLine: 8
   };
 
   function getStore(kind) {
@@ -87,27 +90,112 @@
   function withDefaults(cfg) {
     return Object.assign({}, DEFAULTS, cfg || {});
   }
+  
+  function formatReadingTokens(tokens, cfg) {
+    if (!Array.isArray(tokens)) return '';
+    const lines = [];
+    let cur = [];
+    let count = 0;
+    const limit = Math.max(1, parseInt((cfg && cfg.maxWordsPerLine) || 8, 10));
+    const isEnd = (tok) => /[。！？!?]/.test(tok && tok.slice(-1));
+    for (const tok of tokens) {
+      if (!tok) continue;
+      cur.push(tok);
+      count++;
+      if (isEnd(tok) || count >= limit) {
+        lines.push(cur.join(' '));
+        cur = [];
+        count = 0;
+      }
+    }
+    if (cur.length) lines.push(cur.join(' '));
+    return lines.join('\n');
+  }
+
+  // In-memory LRU cache to reduce API calls during a session
+  const CACHE_LIMIT = 50;
+  const cache = new Map(); // key: text, value: { translation, reading, source }
+  function cacheGet(key) {
+    if (!cache.has(key)) return null;
+    const v = cache.get(key);
+    cache.delete(key); // refresh recency
+    cache.set(key, v);
+    return v;
+  }
+  function cacheSet(key, val) {
+    if (cache.has(key)) cache.delete(key);
+    cache.set(key, val);
+    if (cache.size > CACHE_LIMIT) {
+      const first = cache.keys().next().value;
+      cache.delete(first);
+    }
+  }
 
   api.runtime.onInstalled.addListener(() => {
     storageGet('local', DEFAULTS)
       .then((cfg) => storageSet('local', withDefaults(cfg)))
       .catch((err) => console.warn('Failed to prime defaults:', err));
+    
+    // Create context menu for selection translation
+    if (api.contextMenus) {
+      api.contextMenus.create({
+        id: 'translate-selection',
+        title: 'Translate to Vietnamese',
+        contexts: ['selection']
+      });
+    }
   });
 
   function extractJsonLike(str) {
     if (!str) return null;
-    let trimmed = String(str).trim();
-    if (trimmed.startsWith('```')) {
-      trimmed = trimmed.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '');
-    }
-    try {
-      return JSON.parse(trimmed);
-    } catch (err) {
-      const m = trimmed.match(/\{[\s\S]*\}/);
-      if (m) {
-        try { return JSON.parse(m[0]); } catch (e) { /* ignore */ }
+    let s = String(str).trim();
+    // Strip common code fences and language hints
+    s = s.replace(/^```(?:json|javascript)?\n?|```$/gim, '').trim();
+    // Fast path
+    try { return JSON.parse(s); } catch (_) {}
+    // Collect balanced JSON object substrings and try parse
+    const candidates = [];
+    let depth = 0, start = -1;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === '{') {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0 && start !== -1) {
+          candidates.push(s.slice(start, i + 1));
+          start = -1;
+        }
       }
     }
+    for (const c of candidates.reverse()) { // prefer the last complete object
+      try { return JSON.parse(c); } catch (_) {}
+      // naive single-quote repair as a last resort
+      if (c.includes("'") && !c.includes('"')) {
+        const repaired = c.replace(/'([^']*)'/g, '"$1"');
+        try { return JSON.parse(repaired); } catch (_) {}
+      }
+    }
+    return null;
+  }
+
+  function parseRetryDelaySeconds(errorJson) {
+    try {
+      const details = errorJson && errorJson.error && errorJson.error.details;
+      if (Array.isArray(details)) {
+        for (const d of details) {
+          if (d && d['@type'] && String(d['@type']).includes('google.rpc.RetryInfo')) {
+            const delay = d.retryDelay || d.retry_delay || '';
+            const m = String(delay).match(/(\d+)(?:\.(\d+))?s/);
+            if (m) {
+              const s = parseInt(m[1] || '0', 10);
+              return s;
+            }
+          }
+        }
+      }
+    } catch (_) { /* ignore */ }
     return null;
   }
 
@@ -118,15 +206,31 @@
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.geminiModel)}:generateContent?key=${encodeURIComponent(key)}`;
 
-    const langLabel = target === 'VI' ? 'Vietnamese'
-      : (target === 'EN' ? 'English' : target);
-    const prompt = `Detect the source language and translate to ${langLabel}. If source is Japanese/Chinese/Korean, provide romanized reading.\nReturn JSON: {"translation":"...","reading":"romanization or empty"}\n\nText: ${text}`;
+    const langLabel = 'Vietnamese'; // fixed translation target
+    const isShort = String(text || '').trim().length <= 120;
+    // Optimized prompt for JP/EN → VI with reading
+    const prompt = `You are a professional translator.
+Translate the following text into Vietnamese (VIETNAMESE).
+
+CRITICAL RULES:
+1. If the source language is Japanese (日本語), include romaji reading.
+2. If the source language is English, include phonetic transcription (IPA or stress-marked reading).
+3. Return JSON only, no markdown, no comments.
+
+OUTPUT FORMAT (strict JSON):
+{
+  "translation": "Vietnamese translation here",
+  "reading": "romaji or (IPA)phonetic stress-marked reading here"
+}
+
+Now translate ${isShort ? 'briefly (1–10 words max)' : 'this text'}:
+${text}`;
 
     const body = {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 200,
+        maxOutputTokens: isShort ? 150 : 200,
         topP: 0.8,
         topK: 10
       }
@@ -135,22 +239,46 @@
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     let timeoutId;
     if (controller) {
-      timeoutId = setTimeout(() => controller.abort(), 8000);
+      timeoutId = setTimeout(() => controller.abort(), isShort ? 6000 : 8000);
     }
 
-    try {
-      const resp = await fetch(url, {
+    async function doFetch() {
+      return fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         signal: controller ? controller.signal : undefined
       });
+    }
+
+    try {
+      let resp = await doFetch();
 
       if (timeoutId) clearTimeout(timeoutId);
 
       if (!resp.ok) {
-        const t = await resp.text();
-        throw new Error(`Gemini HTTP ${resp.status}: ${t}`);
+        if (resp.status === 429) {
+          // Try to parse retry delay and retry once if reasonable (<= 20s)
+          let retrySec = null;
+          try {
+            const ej = await resp.json();
+            retrySec = parseRetryDelaySeconds(ej);
+          } catch (_) {
+            // fall back to text and no retry
+          }
+          if (typeof retrySec === 'number' && retrySec > 0 && retrySec <= 20) {
+            await new Promise(r => setTimeout(r, retrySec * 1000));
+            // New controller not strictly necessary if previous not aborted
+            resp = await doFetch();
+          }
+          if (!resp.ok) {
+            const t = await resp.text();
+            throw new Error(`Gemini HTTP ${resp.status}: ${t}`);
+          }
+        } else {
+          const t = await resp.text();
+          throw new Error(`Gemini HTTP ${resp.status}: ${t}`);
+        }
       }
 
       const data = await resp.json();
@@ -164,7 +292,11 @@
       if (obj && typeof obj.translation === 'string') {
         return { translation: obj.translation, reading: obj.reading || '' };
       }
-      const clean = raw.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '');
+      const clean = raw
+        .replace(/^```[\s\S]*?```$/g, '')
+        .replace(/^```[a-zA-Z]*\n?/, '')
+        .replace(/```$/, '')
+        .trim();
       return { translation: clean || '(no text)', reading: '' };
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
@@ -175,14 +307,106 @@
     }
   }
 
+  async function translateWithDeepL(text) {
+    const cfg = withDefaults(await storageGet('local', DEFAULTS));
+    const key = (cfg.deepLApiKey || '').trim();
+    if (!key) throw new Error('Missing DeepL API key. Set it in Options.');
+    const isPro = (cfg.deepLEndpoint || 'free') === 'pro';
+    const url = isPro ? 'https://api.deepl.com/v2/translate' : 'https://api-free.deepl.com/v2/translate';
+    const params = new URLSearchParams();
+    params.append('text', text);
+    params.append('target_lang', 'VI');
+    // Leave source_lang empty for auto-detect
+
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    let timeoutId;
+    if (controller) timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `DeepL-Auth-Key ${key}`
+        },
+        body: params.toString(),
+        signal: controller ? controller.signal : undefined
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+      if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error(`DeepL HTTP ${resp.status}: ${t}`);
+      }
+      const data = await resp.json();
+      const translated = data && Array.isArray(data.translations) && data.translations[0] && data.translations[0].text;
+      return { translation: translated || '(no text)', reading: '' };
+    } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (err && err.name === 'AbortError') {
+        throw new Error('DeepL timeout. Try shorter text.');
+      }
+      throw err;
+    }
+  }
+
+  // (LibreTranslate fallback removed)
+
+  // Simplified pipeline: call Gemini directly (JP/EN → VI only)
+  async function translatePipeline(text, cfg) {
+    const t = String(text || '').trim();
+    if (!t) return { translation: '', reading: '' };
+    const cached = cacheGet(t);
+    if (cached) return Object.assign({ cached: true }, cached);
+    try {
+      const result = await translateWithGemini(t, 'VI');
+      const out = Object.assign({ source: 'gemini' }, result);
+      if (!out.reading && typeof OfflineDB !== 'undefined' && OfflineDB && typeof OfflineDB.buildReadingTokens === 'function') {
+        try {
+          const tokens = await OfflineDB.buildReadingTokens(t);
+          out.reading = Array.isArray(tokens) ? formatReadingTokens(tokens, cfg) : '';
+        } catch (_) {}
+      }
+      cacheSet(t, out);
+      return out;
+    } catch (e) {
+      // Fallback to DeepL if configured
+      const cfg2 = withDefaults(cfg);
+      if (cfg2.deepLApiKey) {
+        const dl = await translateWithDeepL(t);
+        const out2 = Object.assign({ source: 'deepl' }, dl);
+        if (!out2.reading && typeof OfflineDB !== 'undefined' && OfflineDB && typeof OfflineDB.buildReadingTokens === 'function') {
+          try {
+            const tokens2 = await OfflineDB.buildReadingTokens(t);
+            out2.reading = Array.isArray(tokens2) ? formatReadingTokens(tokens2, cfg2) : '';
+          } catch (_) {}
+        }
+        cacheSet(t, out2);
+        return out2;
+      }
+      throw e;
+    }
+  }
+
+  // Context menu click handler
+  if (api.contextMenus) {
+    api.contextMenus.onClicked.addListener((info, tab) => {
+      if (info.menuItemId === 'translate-selection' && info.selectionText) {
+        // Send message to content script to show translation
+        api.tabs.sendMessage(tab.id, {
+          type: 'TRANSLATE_FROM_CONTEXT',
+          text: info.selectionText
+        });
+      }
+    });
+  }
+
   api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg && msg.type === 'TRANSLATE_TEXT') {
       (async () => {
         try {
           const cfg = withDefaults(await storageGet('local', DEFAULTS));
           const text = String(msg.text || '').slice(0, cfg.maxChars);
-          const target = cfg.targetLang || 'VI';
-          const result = await translateWithGemini(text, target);
+          const result = await translatePipeline(text, cfg);
           sendResponse(Object.assign({ ok: true }, result));
         } catch (err) {
           sendResponse({ ok: false, error: err && err.message ? err.message : String(err) });

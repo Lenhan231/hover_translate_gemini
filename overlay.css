@@ -84,6 +84,8 @@
   color: #6b7280;
   margin-bottom: 8px;
   font-family: 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 @media (prefers-color-scheme: dark) {
   #jp-hover-translate-overlay #jht-reading {

@@ -1,23 +1,71 @@
-
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8" />
   <title>Quick Translate to Vietnamese — Options</title>
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans";
-           margin: 24px; max-width: 760px; }
-    h1 { font-size: 20px; margin: 0 0 16px; }
-    .section { border: 1px solid #e4e4e7; border-radius: 12px; padding: 16px; margin-bottom: 18px; }
-    label { display:block; font-weight:600; margin:10px 0 6px; }
-    input[type="text"], select { width:100%; padding:8px; border:1px solid #d4d4d8; border-radius:8px; }
-    .row { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    small.note { color:#6b7280; display:block; margin-top:6px; }
-    button { padding:8px 12px; border-radius:8px; border:1px solid #d4d4d8; cursor:pointer; }
-    ul { padding-left: 20px; }
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans";
+      margin: 24px;
+      max-width: 760px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 16px;
+    }
+
+    .section {
+      border: 1px solid #e4e4e7;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 10px 0 6px;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d4d4d8;
+      border-radius: 8px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    small.note {
+      color: #6b7280;
+      display: block;
+      margin-top: 6px;
+    }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #d4d4d8;
+      cursor: pointer;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
   </style>
 </head>
+
 <body>
   <h1>Quick Translate to Vietnamese — Settings</h1>
   <p style="color:#6b7280;margin-top:-8px;margin-bottom:16px;">Alt+Select any text to translate to Vietnamese</p>
@@ -27,7 +75,8 @@
       <div>
         <label for="geminiKey">Gemini API Key</label>
         <input id="geminiKey" type="text" placeholder="AIza...">
-        <small class="note">Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+        <small class="note">Get your free API key at <a href="https://aistudio.google.com/app/apikey"
+            target="_blank">Google AI Studio</a></small>
       </div>
       <div>
         <label for="geminiModel">Gemini Model</label>
@@ -38,16 +87,38 @@
 
     <div class="row">
       <div>
-        <label for="targetLang">Target Language</label>
-        <select id="targetLang">
-          <option value="VI">Vietnamese (VI)</option>
-          <option value="EN">English (EN)</option>
+        <label for="deepLKey">DeepL API Key (optional)</label>
+        <input id="deepLKey" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx">
+        <small class="note">Use Free endpoint by default. Get a key at <a href="https://www.deepl.com/pro-api" target="_blank">DeepL</a></small>
+      </div>
+      <div>
+        <label for="deepLEndpoint">DeepL Endpoint</label>
+        <select id="deepLEndpoint">
+          <option value="free" selected>Free (api-free.deepl.com)</option>
+          <option value="pro">Pro (api.deepl.com)</option>
         </select>
+        <small class="note">Used only as fallback when Gemini fails</small>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Target Language</label>
+        <input type="text" value="Vietnamese (fixed)" disabled>
+        <small class="note">This extension translates JP/EN → Vietnamese only</small>
       </div>
       <div>
         <label for="maxChars">Max Characters</label>
-        <input id="maxChars" type="text" value="600">
-        <small class="note">Maximum text length per translation</small>
+        <input id="maxChars" type="text" value="120">
+        <small class="note">Recommended 120 for fast word/phrase translation</small>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="maxWordsPerLine">Romaji Words per Line</label>
+        <input id="maxWordsPerLine" type="text" value="8">
+        <small class="note">Wrap reading every N tokens (even without punctuation)</small>
       </div>
     </div>
 
@@ -65,6 +136,35 @@
     </div>
   </div>
 
+  <div class="section">
+    <h3>Offline Readings</h3>
+    <p style="color:#6b7280;margin-top:-4px;margin-bottom:10px;">Import IPA (EN) and JMdict mini (JA) to get readings offline.</p>
+    <div class="row">
+      <div>
+        <label for="ipaFile">Import English IPA (TSV or JSON Lines)</label>
+        <input id="ipaFile" type="file" accept=".tsv,.txt,.json,.ndjson">
+        <small class="note">Format: <code>word\t/ipa/</code> or <code>{"w":"word","ipa":"/.../"}</code></small>
+        <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+          <button id="importIPA">Import IPA</button>
+          <button id="clearIPA">Clear IPA</button>
+          <span id="countIPA" style="color:#6b7280"></span>
+        </div>
+      </div>
+      <div>
+        <label for="jaFile">Import JMdict mini (JSON / NDJSON)</label>
+        <input id="jaFile" type="file" accept=".json,.ndjson,.txt">
+        <small class="note">Format: <code>[{"k":["日本語"],"r":["にほんご"]}, ...]</code></small>
+        <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+          <button id="importJA">Import JMdict</button>
+          <button id="clearJA">Clear JMdict</button>
+          <span id="countJA" style="color:#6b7280"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="offline-db.js"></script>
   <script src="options.js"></script>
 </body>
+
 </html>

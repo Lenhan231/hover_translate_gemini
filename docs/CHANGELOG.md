@@ -1,3 +1,36 @@
+# Thay đổi v2.1.3 - Offline readings + tokenized romaji
+
+## ✨ Mới
+
+- Offline Readings (IndexedDB): import IPA (EN, TSV/JSON lines) và JMdict mini (JA)
+- Tokenize romaji theo từ/đoạn; Katakana segmentation heuristic để giảm dính
+- Ưu tiên hiragana/common khi nhập JMdict (tránh "ヒュンダイ" ghi đè "げんだい")
+- Nếu API không trả reading, tự dựng từ offline DB (IPA/romaji)
+- DeepL timeout giảm còn 6s; badge overlay hiển thị đúng nguồn (Gemini/DeepL)
+
+# Thay đổi v2.1.0 - JP/EN → VI Focus
+
+## 🎯 Phạm vi mới
+
+- Chỉ hỗ trợ dịch tiếng Nhật hoặc tiếng Anh → tiếng Việt
+- Hiển thị "reading": Nhật → romaji; Anh → IPA/stress
+
+## ⚙️ Kỹ thuật
+
+- Prompt Gemini tối ưu cho JP/EN với JSON-only output
+- Giới hạn mặc định 120 ký tự cho tốc độ và độ ổn định
+- Bỏ hybrid engine (LibreTranslate/JMdict) để đơn giản hoá
+
+# Thay đổi v2.0.1 - Cleanup (Browser-only focus)
+
+## ✂️ Dọn gọn repo, tập trung extension
+
+- Gỡ tài liệu/script không còn dùng cho mục tiêu trình duyệt: `PDF_SUPPORT.md`, `DESKTOP_APP_IDEA.md`, `pdf-to-html.sh`
+- Thư mục `desktop-app/` giữ như archive (không dùng, không đóng gói vào `.xpi`)
+- Đơn giản hóa `content.js`: bỏ các listeners đặc thù cho PDF viewer, giữ handler Alt trên trang web thông thường
+- Siết quyền trong `manifest.json`: giới hạn content scripts cho `http://*/*` và `https://*/*`, bỏ permission `<all_urls>`
+- Cập nhật README về phạm vi: browser pages (không desktop-app / xử lý PDF riêng)
+
 # Thay đổi v2.0.0 - Firefox/Zen Browser Edition
 
 ## 🔥 Thay đổi lớn
@@ -129,3 +162,23 @@ zip -r quick-translate-vi.xpi * --exclude '*.git*'
 - [ ] Export/import saved words
 - [ ] Anki integration
 - [ ] Keyboard shortcuts tùy chỉnh
+# Thay đổi v2.1.0 - JP/EN → VI Focus
+ 
+## 🎯 Phạm vi mới
+ 
+- Chỉ hỗ trợ dịch tiếng Nhật hoặc tiếng Anh → tiếng Việt
+- Hiển thị "reading": Nhật → romaji; Anh → IPA/stress
+ 
+## ⚙️ Kỹ thuật
+ 
+- Prompt Gemini tối ưu cho JP/EN với JSON-only output
+- Giới hạn mặc định 120 ký tự cho tốc độ và độ ổn định
+- Bỏ hybrid engine (LibreTranslate/JMdict) để đơn giản hoá
+
+# Thay đổi v2.0.1 - Cleanup (Browser-only focus)
+
+## v2.1.1
+- Gỡ bỏ fallback LibreTranslate và trường cấu hình URL trong Options
+
+## v2.1.2
+- Thêm fallback DeepL (Free/Pro) với cấu hình API Key + endpoint

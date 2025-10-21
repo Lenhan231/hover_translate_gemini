@@ -2,15 +2,28 @@
 const DEFAULTS = {
   geminiApiKey: '',
   geminiModel: 'gemini-2.0-flash',
-  targetLang: 'VI',
-  maxChars: 600
+  targetLang: 'VI', // fixed
+  maxChars: 120,
+  deepLApiKey: '',
+  deepLEndpoint: 'free',
+  maxWordsPerLine: 8
 };
 
 const els = {
   geminiKey: document.getElementById('geminiKey'),
   geminiModel: document.getElementById('geminiModel'),
-  targetLang: document.getElementById('targetLang'),
   maxChars: document.getElementById('maxChars'),
+  maxWordsPerLine: document.getElementById('maxWordsPerLine'),
+  ipaFile: document.getElementById('ipaFile'),
+  jaFile: document.getElementById('jaFile'),
+  importIPA: document.getElementById('importIPA'),
+  importJA: document.getElementById('importJA'),
+  clearIPA: document.getElementById('clearIPA'),
+  clearJA: document.getElementById('clearJA'),
+  countIPA: document.getElementById('countIPA'),
+  countJA: document.getElementById('countJA'),
+  deepLApiKey: document.getElementById('deepLKey'),
+  deepLEndpoint: document.getElementById('deepLEndpoint'),
   save: document.getElementById('save'),
   reset: document.getElementById('reset'),
   saved: document.getElementById('saved'),
@@ -42,11 +55,23 @@ async function load() {
     
     els.geminiKey.value = cfg.geminiApiKey || '';
     els.geminiModel.value = cfg.geminiModel || 'gemini-2.0-flash';
-    els.targetLang.value = cfg.targetLang || 'VI';
-    els.maxChars.value = cfg.maxChars ?? 600;
+    els.maxChars.value = cfg.maxChars ?? 120;
+    els.maxWordsPerLine.value = cfg.maxWordsPerLine ?? 8;
+    els.deepLApiKey.value = cfg.deepLApiKey || '';
+    els.deepLEndpoint.value = cfg.deepLEndpoint || 'free';
 
     const savedData = await storage.local.get({ savedWords: [] });
     renderSaved(savedData.savedWords);
+
+    // Load counts for offline DB
+    try {
+      const ipaCount = await (window.OfflineDB ? window.OfflineDB.countIPA() : Promise.resolve(0));
+      const jaCount = await (window.OfflineDB ? window.OfflineDB.countJA() : Promise.resolve(0));
+      els.countIPA.textContent = `(entries: ${ipaCount})`;
+      els.countJA.textContent = `(entries: ${jaCount})`;
+    } catch (e) {
+      console.warn('OfflineDB count failed:', e);
+    }
     
     console.log('Options page loaded successfully');
   } catch (err) {
@@ -83,8 +108,11 @@ els.save.addEventListener('click', async () => {
     const cfg = {
       geminiApiKey: apiKey,
       geminiModel: els.geminiModel.value.trim() || 'gemini-2.0-flash',
-      targetLang: els.targetLang.value,
-      maxChars: parseInt(els.maxChars.value || '600', 10)
+      targetLang: 'VI',
+      maxChars: parseInt(els.maxChars.value || '120', 10),
+      deepLApiKey: els.deepLApiKey.value.trim(),
+      deepLEndpoint: els.deepLEndpoint.value,
+      maxWordsPerLine: parseInt(els.maxWordsPerLine.value || '8', 10)
     };
     
     console.log('Saving config:', cfg);
@@ -117,3 +145,52 @@ els.clear.addEventListener('click', async () => {
 });
 
 load();
+
+// ------- Offline import handlers -------
+async function readFileAsText(file) {
+  if (!file) throw new Error('No file selected');
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result || ''));
+    fr.onerror = () => reject(fr.error || new Error('Read error'));
+    fr.readAsText(file);
+  });
+}
+
+if (window.OfflineDB) {
+  els.importIPA?.addEventListener('click', async () => {
+    try {
+      const txt = await readFileAsText(els.ipaFile.files[0]);
+      const res = await window.OfflineDB.importIPAFromText(txt);
+      const c = await window.OfflineDB.countIPA();
+      els.countIPA.textContent = `(entries: ${c})`;
+      alert(`Imported IPA: ${res.imported} entries`);
+    } catch (e) {
+      alert('Import IPA failed: ' + (e && e.message ? e.message : e));
+    }
+  });
+
+  els.clearIPA?.addEventListener('click', async () => {
+    await window.OfflineDB.clearIPA();
+    const c = await window.OfflineDB.countIPA();
+    els.countIPA.textContent = `(entries: ${c})`;
+  });
+
+  els.importJA?.addEventListener('click', async () => {
+    try {
+      const txt = await readFileAsText(els.jaFile.files[0]);
+      const res = await window.OfflineDB.importJMdictFromText(txt);
+      const c = await window.OfflineDB.countJA();
+      els.countJA.textContent = `(entries: ${c})`;
+      alert(`Imported JMdict entries: ${res.imported}`);
+    } catch (e) {
+      alert('Import JMdict failed: ' + (e && e.message ? e.message : e));
+    }
+  });
+
+  els.clearJA?.addEventListener('click', async () => {
+    await window.OfflineDB.clearJA();
+    const c = await window.OfflineDB.countJA();
+    els.countJA.textContent = `(entries: ${c})`;
+  });
+}
