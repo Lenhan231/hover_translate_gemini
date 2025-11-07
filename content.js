@@ -5,8 +5,38 @@ let overlay, overlayText, savedBtn, readingRow, providerBadge;
 const DEFAULTS = { targetLang: 'VI' };
 const MAX_LEN_FALLBACK = 120;
 
-// Cross-browser API compatibility
-const api = (typeof browser !== 'undefined') ? browser : chrome;
+// Chrome/Brave API with callback-based storage wrapped as Promises
+const api = {
+  storage: {
+    local: {
+      get: (keys) => {
+        return new Promise((resolve, reject) => {
+          chrome.storage.local.get(keys, (res) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(res);
+            }
+          });
+        });
+      },
+      set: (data) => {
+        return new Promise((resolve, reject) => {
+          chrome.storage.local.set(data, () => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve();
+            }
+          });
+        });
+      }
+    }
+  },
+  runtime: chrome.runtime
+};
+
+// ResponsiveVoice is loaded via manifest content_scripts
 
 // Soft selection style
 (function injectSelectionStyle() {
@@ -27,6 +57,7 @@ function ensureOverlay() {
     <div id="jht-text" class="jht-translation"></div>
     <div id="jht-reading" class="jht-reading"></div>
     <div class="jht-actions">
+      <button id="jht-speak">� Đọec</button>
       <button id="jht-save">💾 Save Word</button>
     </div>
   `;
@@ -36,6 +67,99 @@ function ensureOverlay() {
   savedBtn = overlay.querySelector('#jht-save');
   providerBadge = overlay.querySelector('.jht-badge');
   const closeBtn = overlay.querySelector('#jht-close');
+  const speakBtn = overlay.querySelector('#jht-speak');
+
+  let currentAudio = null;
+
+  speakBtn.addEventListener('click', async () => {
+    const text = overlayText?.dataset?.source || '';
+    if (!text) return;
+
+    try {
+      // Visual feedback
+      speakBtn.textContent = '🔊 Đang đọc...';
+      speakBtn.style.background = '#3b82f6';
+      speakBtn.style.color = 'white';
+
+      // Stop any ongoing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      // Auto-detect language: Japanese or English
+      const isJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(text);
+      const lang = isJapanese ? 'ja' : 'en';
+
+      // Request audio from background script (bypasses CSP)
+      chrome.runtime.sendMessage({
+        type: 'GET_TTS_AUDIO',
+        text: text,
+        lang: lang
+      }, (response) => {
+        if (!response || !response.ok) {
+          speakBtn.textContent = '❌ Lỗi';
+          speakBtn.style.background = '';
+          speakBtn.style.color = '';
+          setTimeout(() => {
+            speakBtn.textContent = '🔊 Đọc';
+          }, 2000);
+          console.error('TTS error:', response?.error);
+          return;
+        }
+
+        try {
+          // Convert base64 to blob URL (CSP allows blob:)
+          const binaryString = atob(response.audioBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: response.mimeType || 'audio/mpeg' });
+          const blobUrl = URL.createObjectURL(blob);
+
+          currentAudio = new Audio(blobUrl);
+
+          currentAudio.onended = () => {
+            speakBtn.textContent = '🔊 Đọc';
+            speakBtn.style.background = '';
+            speakBtn.style.color = '';
+            URL.revokeObjectURL(blobUrl);
+          };
+
+          currentAudio.onerror = (err) => {
+            console.error('Audio play error:', err);
+            speakBtn.textContent = '❌ Lỗi';
+            speakBtn.style.background = '';
+            speakBtn.style.color = '';
+            URL.revokeObjectURL(blobUrl);
+            setTimeout(() => {
+              speakBtn.textContent = '🔊 Đọc';
+            }, 2000);
+          };
+
+          currentAudio.play();
+        } catch (blobErr) {
+          console.error('Blob creation error:', blobErr);
+          speakBtn.textContent = '❌ Lỗi';
+          speakBtn.style.background = '';
+          speakBtn.style.color = '';
+          setTimeout(() => {
+            speakBtn.textContent = '🔊 Đọc';
+          }, 2000);
+        }
+      });
+
+    } catch (err) {
+      console.error('Speech synthesis error:', err);
+      speakBtn.textContent = '❌ Lỗi';
+      speakBtn.style.background = '';
+      speakBtn.style.color = '';
+      setTimeout(() => {
+        speakBtn.textContent = '🔊 Đọc';
+      }, 2000);
+    }
+  });
 
   savedBtn.addEventListener('click', async () => {
     const src = overlayText?.dataset?.source || '';
@@ -65,6 +189,11 @@ function ensureOverlay() {
 
   closeBtn.addEventListener('click', () => {
     overlay.style.display = 'none';
+    // Stop audio when closing overlay
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
   });
 }
 
@@ -104,9 +233,9 @@ async function doTranslate(text) {
   api.runtime.sendMessage({ type: 'TRANSLATE_TEXT', text }, (resp) => {
     const elapsed = Date.now() - startTime;
     console.log(`Translation took ${elapsed}ms`);
-    
+
     overlayText.style.opacity = '1';
-    
+
     if (!resp?.ok) {
       overlayText.textContent = `❌ ${resp?.error || 'Unknown error'}`;
       return;
@@ -115,7 +244,7 @@ async function doTranslate(text) {
     try {
       const src = resp.source || 'gemini';
       providerBadge.textContent = src === 'deepl' ? 'DeepL' : 'Gemini AI';
-    } catch (_) {}
+    } catch (_) { }
 
     overlayText.textContent = renderText(resp.translation || '');
     let reading = resp.reading || '';
@@ -197,35 +326,35 @@ function kanaToRomaji(input) {
   if (!input) return '';
   // Basic Hepburn-like mapping; handles digraphs and prolonged sound mark
   const map = {
-    ぁ:'a', あ:'a', ぃ:'i', い:'i', ぅ:'u', う:'u', ぇ:'e', え:'e', ぉ:'o', お:'o', ゃ:'ya', や:'ya', ゅ:'yu', ゆ:'yu', ょ:'yo', よ:'yo', ゎ:'wa', わ:'wa', を:'o', ん:'n',
-    か:'ka', き:'ki', く:'ku', け:'ke', こ:'ko', が:'ga', ぎ:'gi', ぐ:'gu', げ:'ge', ご:'go',
-    さ:'sa', し:'shi', す:'su', せ:'se', そ:'so', ざ:'za', じ:'ji', ず:'zu', ぜ:'ze', ぞ:'zo',
-    た:'ta', ち:'chi', つ:'tsu', て:'te', と:'to', だ:'da', ぢ:'ji', づ:'zu', で:'de', ど:'do',
-    な:'na', に:'ni', ぬ:'nu', ね:'ne', の:'no',
-    は:'ha', ひ:'hi', ふ:'fu', へ:'he', ほ:'ho', ば:'ba', び:'bi', ぶ:'bu', べ:'be', ぼ:'bo', ぱ:'pa', ぴ:'pi', ぷ:'pu', ぺ:'pe', ぽ:'po',
-    ま:'ma', み:'mi', む:'mu', め:'me', も:'mo',
-    ら:'ra', り:'ri', る:'ru', れ:'re', ろ:'ro',
-    きゃ:'kya', きゅ:'kyu', きょ:'kyo', ぎゃ:'gya', ぎゅ:'gyu', ぎょ:'gyo',
-    しゃ:'sha', しゅ:'shu', しょ:'sho', じゃ:'ja', じゅ:'ju', じょ:'jo',
-    ちゃ:'cha', ちゅ:'chu', ちょ:'cho', にゃ:'nya', にゅ:'nyu', にょ:'nyo',
-    ひゃ:'hya', ひゅ:'hyu', ひょ:'hyo', びゃ:'bya', びゅ:'byu', びょ:'byo', ぴゃ:'pya', ぴゅ:'pyu', ぴょ:'pyo',
-    みゃ:'mya', みゅ:'myu', みょ:'myo', りゃ:'rya', りゅ:'ryu', りょ:'ryo',
-    ゔ:'vu',
+    ぁ: 'a', あ: 'a', ぃ: 'i', い: 'i', ぅ: 'u', う: 'u', ぇ: 'e', え: 'e', ぉ: 'o', お: 'o', ゃ: 'ya', や: 'ya', ゅ: 'yu', ゆ: 'yu', ょ: 'yo', よ: 'yo', ゎ: 'wa', わ: 'wa', を: 'o', ん: 'n',
+    か: 'ka', き: 'ki', く: 'ku', け: 'ke', こ: 'ko', が: 'ga', ぎ: 'gi', ぐ: 'gu', げ: 'ge', ご: 'go',
+    さ: 'sa', し: 'shi', す: 'su', せ: 'se', そ: 'so', ざ: 'za', じ: 'ji', ず: 'zu', ぜ: 'ze', ぞ: 'zo',
+    た: 'ta', ち: 'chi', つ: 'tsu', て: 'te', と: 'to', だ: 'da', ぢ: 'ji', づ: 'zu', で: 'de', ど: 'do',
+    な: 'na', に: 'ni', ぬ: 'nu', ね: 'ne', の: 'no',
+    は: 'ha', ひ: 'hi', ふ: 'fu', へ: 'he', ほ: 'ho', ば: 'ba', び: 'bi', ぶ: 'bu', べ: 'be', ぼ: 'bo', ぱ: 'pa', ぴ: 'pi', ぷ: 'pu', ぺ: 'pe', ぽ: 'po',
+    ま: 'ma', み: 'mi', む: 'mu', め: 'me', も: 'mo',
+    ら: 'ra', り: 'ri', る: 'ru', れ: 're', ろ: 'ro',
+    きゃ: 'kya', きゅ: 'kyu', きょ: 'kyo', ぎゃ: 'gya', ぎゅ: 'gyu', ぎょ: 'gyo',
+    しゃ: 'sha', しゅ: 'shu', しょ: 'sho', じゃ: 'ja', じゅ: 'ju', じょ: 'jo',
+    ちゃ: 'cha', ちゅ: 'chu', ちょ: 'cho', にゃ: 'nya', にゅ: 'nyu', にょ: 'nyo',
+    ひゃ: 'hya', ひゅ: 'hyu', ひょ: 'hyo', びゃ: 'bya', びゅ: 'byu', びょ: 'byo', ぴゃ: 'pya', ぴゅ: 'pyu', ぴょ: 'pyo',
+    みゃ: 'mya', みゅ: 'myu', みょ: 'myo', りゃ: 'rya', りゅ: 'ryu', りょ: 'ryo',
+    ゔ: 'vu',
     // Katakana basic
-    ァ:'a', ア:'a', ィ:'i', イ:'i', ゥ:'u', ウ:'u', ェ:'e', エ:'e', ォ:'o', オ:'o', ャ:'ya', ヤ:'ya', ュ:'yu', ユ:'yu', ョ:'yo', ヨ:'yo', ヮ:'wa', ワ:'wa', ヲ:'o', ン:'n',
-    カ:'ka', キ:'ki', ク:'ku', ケ:'ke', コ:'ko', ガ:'ga', ギ:'gi', グ:'gu', ゲ:'ge', ゴ:'go',
-    サ:'sa', シ:'shi', ス:'su', セ:'se', ソ:'so', ザ:'za', ジ:'ji', ズ:'zu', ゼ:'ze', ゾ:'zo',
-    タ:'ta', チ:'chi', ツ:'tsu', テ:'te', ト:'to', ダ:'da', ヂ:'ji', ヅ:'zu', デ:'de', ド:'do',
-    ナ:'na', ニ:'ni', ヌ:'nu', ネ:'ne', ノ:'no',
-    ハ:'ha', ヒ:'hi', フ:'fu', ヘ:'he', ホ:'ho', バ:'ba', ビ:'bi', ブ:'bu', ベ:'be', ボ:'bo', パ:'pa', ピ:'pi', プ:'pu', ペ:'pe', ポ:'po',
-    マ:'ma', ミ:'mi', ム:'mu', メ:'me', モ:'mo',
-    ラ:'ra', リ:'ri', ル:'ru', レ:'re', ロ:'ro',
-    キャ:'kya', キュ:'kyu', キョ:'kyo', ギャ:'gya', ギュ:'gyu', ギョ:'gyo',
-    シャ:'sha', シュ:'shu', ショ:'sho', ジャ:'ja', ジュ:'ju', ジョ:'jo',
-    チャ:'cha', チュ:'chu', チョ:'cho', ニャ:'nya', ニュ:'nyu', ニョ:'nyo',
-    ヒャ:'hya', ヒュ:'hyu', ヒョ:'hyo', ビャ:'bya', ビュ:'byu', ビョ:'byo', ピャ:'pya', ピュ:'pyu', ピョ:'pyo',
-    ミャ:'mya', ミュ:'myu', ミョ:'myo', リャ:'rya', リュ:'ryu', リョ:'ryo',
-    ヴ:'vu'
+    ァ: 'a', ア: 'a', ィ: 'i', イ: 'i', ゥ: 'u', ウ: 'u', ェ: 'e', エ: 'e', ォ: 'o', オ: 'o', ャ: 'ya', ヤ: 'ya', ュ: 'yu', ユ: 'yu', ョ: 'yo', ヨ: 'yo', ヮ: 'wa', ワ: 'wa', ヲ: 'o', ン: 'n',
+    カ: 'ka', キ: 'ki', ク: 'ku', ケ: 'ke', コ: 'ko', ガ: 'ga', ギ: 'gi', グ: 'gu', ゲ: 'ge', ゴ: 'go',
+    サ: 'sa', シ: 'shi', ス: 'su', セ: 'se', ソ: 'so', ザ: 'za', ジ: 'ji', ズ: 'zu', ゼ: 'ze', ゾ: 'zo',
+    タ: 'ta', チ: 'chi', ツ: 'tsu', テ: 'te', ト: 'to', ダ: 'da', ヂ: 'ji', ヅ: 'zu', デ: 'de', ド: 'do',
+    ナ: 'na', ニ: 'ni', ヌ: 'nu', ネ: 'ne', ノ: 'no',
+    ハ: 'ha', ヒ: 'hi', フ: 'fu', ヘ: 'he', ホ: 'ho', バ: 'ba', ビ: 'bi', ブ: 'bu', ベ: 'be', ボ: 'bo', パ: 'pa', ピ: 'pi', プ: 'pu', ペ: 'pe', ポ: 'po',
+    マ: 'ma', ミ: 'mi', ム: 'mu', メ: 'me', モ: 'mo',
+    ラ: 'ra', リ: 'ri', ル: 'ru', レ: 're', ロ: 'ro',
+    キャ: 'kya', キュ: 'kyu', キョ: 'kyo', ギャ: 'gya', ギュ: 'gyu', ギョ: 'gyo',
+    シャ: 'sha', シュ: 'shu', ショ: 'sho', ジャ: 'ja', ジュ: 'ju', ジョ: 'jo',
+    チャ: 'cha', チュ: 'chu', チョ: 'cho', ニャ: 'nya', ニュ: 'nyu', ニョ: 'nyo',
+    ヒャ: 'hya', ヒュ: 'hyu', ヒョ: 'hyo', ビャ: 'bya', ビュ: 'byu', ビョ: 'byo', ピャ: 'pya', ピュ: 'pyu', ピョ: 'pyo',
+    ミャ: 'mya', ミュ: 'myu', ミョ: 'myo', リャ: 'rya', リュ: 'ryu', リョ: 'ryo',
+    ヴ: 'vu'
   };
 
   // Handle small tsu (促音) by doubling next consonant

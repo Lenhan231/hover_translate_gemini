@@ -30,16 +30,44 @@ const els = {
   clear: document.getElementById('clear')
 };
 
-// Firefox (and forks like Zen) expose the WebExtensions API as `browser`.
-// Chrome exposes `chrome`. Prefer `browser.storage` when available, otherwise
-// fall back to `chrome.storage`. If neither is available we'll log an error
-// so the console shows a clear message instead of a ReferenceError.
-const storage = (typeof browser !== 'undefined' && browser.storage) ? browser.storage
-  : ((typeof chrome !== 'undefined' && chrome.storage) ? chrome.storage : null);
-
-if (!storage) {
-  console.error('No storage API available: browser.storage and chrome.storage are undefined.');
-}
+// Chrome/Brave storage API with callback-based API wrapped as Promises
+const storage = {
+  local: {
+    get: (keys) => {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.get(keys, (res) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(res);
+          }
+        });
+      });
+    },
+    set: (data) => {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.set(data, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve();
+          }
+        });
+      });
+    },
+    clear: () => {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.clear(() => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+  }
+};
 
 async function load() {
   if (!storage) {
